@@ -1,13 +1,31 @@
+
+extern  crate diesel;
 use actix_web::{web, App, HttpServer};
+use diesel::prelude::*;
+use diesel::r2d2::{self, ConnectionManager};
+mod models;
+mod  schema;
 
+
+pub type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 mod handlers;
-
 
 #[actix_web::main] // or #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| {
+    // Loading .env into environment variable.
+    dotenv::dotenv().ok();
+
+    // set up database connection pool
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL");
+    let manager = ConnectionManager::<PgConnection>::new(database_url);
+    let pool: DbPool = r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create pool.");
+        
+    HttpServer::new( move || {
         App::new()
-            .route("/hello", web::get().to(|| async { "Actix REST API" }))
+        .app_data(web::Data::new(pool.clone()))
+            .route("/", web::get().to(|| async { "Actix REST API" }))
             .service(handlers::index)
             .service(handlers::create)
             .service(handlers::show)
