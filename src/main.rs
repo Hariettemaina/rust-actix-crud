@@ -1,6 +1,6 @@
 
-extern  crate diesel;
-use actix_web::{web, App, HttpServer};
+extern crate diesel;
+use actix_web::{middleware,web, App, HttpServer};
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
 mod models;
@@ -14,6 +14,8 @@ mod handlers;
 async fn main() -> std::io::Result<()> {
     // Loading .env into environment variable.
     dotenv::dotenv().ok();
+    env_logger::init_from_env(env_logger::Env
+    ::new().default_filter_or("info"));
 
     // set up database connection pool
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL");
@@ -25,6 +27,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new( move || {
         App::new()
         .app_data(web::Data::new(pool.clone()))
+        .wrap(middleware::Logger::default())
             .route("/", web::get().to(|| async { "Actix REST API" }))
             .service(handlers::index)
             .service(handlers::create)
